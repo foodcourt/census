@@ -1,12 +1,188 @@
-*.class
+/****************************************************************************
+ * From: Yukan Zhang
+ * Email: yzhan158@syr.edu
+ * Date: 03/07/2015
+ * 
+ * Compilation:  javac Census.java
+ * Execution:    java Census input.txt
+ * Dependencies: io.File, io.FileNotFoundException, util.*
+ *           
+ * This program takes the name of a file as a command-line argument.
+ * From that file, it collects information of city names, state names, and 
+ * their population from 2010 to 2011 respectively.
+ * Then,
+ *   - _HpG_() provides top five cities to target based on highest population 
+ *      growth (% change) between 2010-2012. (50,000 population minimum).
+ *   - _MSP_() provides top five cities to avoid based on the most shrinking 
+ *      population (% change) between 2010-2012. (50,000 population minimum).
+ *   - _HCP_() Top five states with highest cumulative growth (% change 
+ *      combined across all metropolitan areas) between 2010-2012.
+ ****************************************************************************/
 
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
-*.war
-*.ear
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.util.*;
+    
+public class Census 
+{
+    private List<String> cityName = new ArrayList<String>();
+    private List<String> stateName = new ArrayList<String>();
+    private List<Double> firstYear = new ArrayList<Double>();
+    private List<Double> secondYear = new ArrayList<Double>();
+    private List<Double> lastYear = new ArrayList<Double>();
+    
+    public Census (String fileName) throws FileNotFoundException
+    {
+        
+        //Get scanner instance
+        Scanner scanner = new Scanner(new File(fileName));
+        //Skip the first line;
+        scanner.nextLine();
+        //Get all tokens and store them in some data structure
+        while (scanner.hasNextLine())
+        {
+            String str = scanner.nextLine();
+            //Set the delimiter used in file
+            List<String> getLine = Arrays.asList(str.split(","));
+            cityName.add(getLine.get(0));
+            stateName.add(getLine.get(1));
+            firstYear.add(Double.parseDouble(getLine.get(2)));
+            secondYear.add(Double.parseDouble(getLine.get(3)));
+            lastYear.add(Double.parseDouble(getLine.get(4)));
+        } 
+        scanner.close();
+        /* test unit
+        System.out.printf("the length of the file %d\n", cityName.size());
+        System.out.println(cityName.get(1) + stateName.get(1));
+        System.out.printf("%f, %f, %f\n",firstYear.get(1), secondYear.get(1), lastYear.get(1));
+        System.out.println(cityName.get(cityName.size() - 1) + stateName.get(stateName.size() - 1));
+        System.out.printf("%f, %f, %f\n",firstYear.get(cityName.size() - 1), secondYear.get(cityName.size() - 1), lastYear.get(cityName.size() - 1));
+        */
+    }
+    
+    public void _HPG_() // The highest population growth
+    {
+        List<String> hpgCityName = new ArrayList<String>();
+        List<String> hpgStateName = new ArrayList<String>();
+        List<Double> hpgRate = new ArrayList<Double>();
+        //filter cities has > 50,000 population
+        for(int i = 0; i < cityName.size(); i ++)
+        {
+            if(lastYear.get(i) > 50000) 
+            {
+                hpgCityName.add(cityName.get(i));
+                hpgStateName.add(stateName.get(i));
+                hpgRate.add((lastYear.get(i) - firstYear.get(i)) / firstYear.get(i));
+             }
+        }
+        //Select Top 5 cities
+        partSelection(5, hpgRate, hpgCityName, hpgStateName);
+        System.out.println("Top 5 cities with the highest population growth between 2010 and 2012");
+        for(int i = 0; i < 5; i ++)
+            System.out.println(hpgCityName.get(i) + "," + hpgStateName.get(i));        
+    }
+    public void _MSP_() // The most shrinking population
+    {
+            List<String> mspCityName = new ArrayList<String>();
+            List<String> mspStateName = new ArrayList<String>();
+            List<Double> mspRate = new ArrayList<Double>();
+            //filter cities has > 50,000 population
+            for(int i = 0; i < cityName.size(); i ++)
+            {
+                if(lastYear.get(i) > 50000) {
+                    mspCityName.add(cityName.get(i));
+                    mspStateName.add(stateName.get(i));
+                    mspRate.add((firstYear.get(i) - lastYear.get(i)) / firstYear.get(i));
+                }
+            }
+            //Select Top 5 cities
+            partSelection(5, mspRate, mspCityName, mspStateName);
+            System.out.println("Top 5 cities with the most shrinking population between 2010 and 2012");
+            for(int i = 0; i < 5; i ++)
+                System.out.println(mspCityName.get(i) + "," + mspStateName.get(i));
+                
+    }
+    public void _HCG_ () // The highest cumulative growth
+    {
+        List<String> hcgStateName = new ArrayList<String>();
+        List<Double> hcgRate = new ArrayList<Double>();
+       
+        int cumulated = 1;
+        double firstYear_pl = firstYear.get(0);
+        double lastYear_pl = lastYear.get(0);
+        hcgStateName.add(stateName.get(0));
+        
+        while(cumulated < cityName.size())   
+        {
+            //System.out.println(hcgStateName.get(hcgStateName.size() - 1));
+            while ((cumulated < cityName.size())  && (stateName.get(cumulated).equals(hcgStateName.get(hcgStateName.size() - 1))))
+            {   
+                    firstYear_pl += firstYear.get(cumulated);
+                    lastYear_pl += lastYear.get(cumulated);
+                    cumulated ++;
+            }
+            
+            hcgRate.add((lastYear_pl - firstYear_pl) / firstYear_pl);
+            firstYear_pl = 0;
+            lastYear_pl = 0;
+            if(cumulated < cityName.size())
+                hcgStateName.add(stateName.get(cumulated));
+            
+        }
+        System.out.println("Top 5 states with the highest cumulative population between 2010 and 2012");
+        partSelection(5, hcgRate, hcgStateName);
+        for(int i = 0; i < 5; i ++)
+            System.out.printf("\"%s,%f\n",hcgStateName.get(i),hcgRate.get(i));
+    }
+    public void partSelection(int N, List<Double> a, List<String> b, List<String> c)
+    {
+        Exch<Double> exchDouble = new Exch<Double>();
+        Exch<String> exchString = new Exch<String>();
+        
+        for (int i = 0; i < N; i++)
+            {
+                int max = i;
+                for (int j = i+1; j < a.size(); j++)
+                    if (a.get(j) > a.get(max)) max = j;
+                exchDouble.exchange(a, i, max);
+                exchString.exchange(b, i, max);
+                exchString.exchange(c, i, max);
+            }
+     
+    }
+    public void partSelection(int N, List<Double> a, List<String> b)
+    {
+        Exch<Double> exchDouble = new Exch<Double>();
+        Exch<String> exchString = new Exch<String>();
+        
+        for (int i = 0; i < N; i++)
+            {
+                int max = i;
+                for (int j = i+1; j < a.size(); j++)
+                    if (a.get(j) > a.get(max)) max = j;
+                exchDouble.exchange(a, i, max);
+                exchString.exchange(b, i, max);
+            }
+     
+    }
+ 
+    //private static void exch(List<Item> a, int i, int j)
+    private class Exch <Item> 
+    { 
+        public void exchange (List<Item> a, int i, int j){ 
+            Item swap = a.get(i);
+            a.set(i, a.get(j));
+            a.set(j, swap);
+        }
+    }
+    public static void main(String[] args) throws FileNotFoundException 
+    {
+        Census census = new Census("75f647c2ac77-Metropolitan_Populations_2010-2012_.csv");
+        census._HPG_();
+        census._MSP_();
+        census._HCG_();
+    }
+}
+        
+        
+        
